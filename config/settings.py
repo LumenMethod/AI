@@ -43,6 +43,15 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     IMAGE_CACHE_DIR: str = os.getenv("IMAGE_CACHE_DIR", "./image_cache")
 
+    # X (Twitter) — developer.twitter.com → Projects & Apps → Keys
+    TWITTER_API_KEY: str = os.getenv("TWITTER_API_KEY", "")
+    TWITTER_API_SECRET: str = os.getenv("TWITTER_API_SECRET", "")
+    TWITTER_ACCESS_TOKEN: str = os.getenv("TWITTER_ACCESS_TOKEN", "")
+    TWITTER_ACCESS_TOKEN_SECRET: str = os.getenv("TWITTER_ACCESS_TOKEN_SECRET", "")
+
+    # TikTok — developers.tiktok.com → Manage Apps → Content Posting API
+    TIKTOK_ACCESS_TOKEN: str = os.getenv("TIKTOK_ACCESS_TOKEN", "")
+
     # Мультиязычность — языки по веткам (JSON)
     # Пример: {"health": ["en", "pl", "uk"], "tech": ["ru", "en"], "finance": ["ru"]}
     BRANCH_LANGUAGES: dict = field(default_factory=dict)
