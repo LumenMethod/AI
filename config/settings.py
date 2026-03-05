@@ -33,6 +33,15 @@ class Settings:
     CHANNEL_NEWS: str = os.getenv("CHANNEL_NEWS", "")
     CHANNEL_EDU: str = os.getenv("CHANNEL_EDU", "")
 
+    # Meta (Instagram + Facebook)
+    META_ACCESS_TOKEN: str = os.getenv("META_ACCESS_TOKEN", "")
+    INSTAGRAM_ACCOUNT_ID: str = os.getenv("INSTAGRAM_ACCOUNT_ID", "")
+    FACEBOOK_PAGE_ID: str = os.getenv("FACEBOOK_PAGE_ID", "")
+
+    # OpenAI (DALL-E 3 изображения)
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    IMAGE_CACHE_DIR: str = os.getenv("IMAGE_CACHE_DIR", "./image_cache")
+
     # Admin
     ADMIN_IDS: list = None
 
