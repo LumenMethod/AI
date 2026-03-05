@@ -301,6 +301,97 @@ async def admin_del_source(message: Message):
     await message.answer(f"✅ Источник #{parts[1]} деактивирован")
 
 
+@router.message(Command("yscript"))
+async def admin_youtube_script(message: Message):
+    """/yscript <branch> [shorts|long] [lang] [topic...]
+
+    Примеры:
+      /yscript health shorts ru
+      /yscript tech long en Quantum computing for beginners
+      /yscript finance long
+    """
+    if not is_admin(message.from_user.id):
+        return
+
+    parts = message.text.split(maxsplit=4)
+    if len(parts) < 2:
+        await message.answer(
+            f"Использование: <code>/yscript &lt;branch&gt; [shorts|long] [lang] [topic]</code>\n\n"
+            f"Ветки: {' | '.join(BRANCHES)}\n"
+            f"Формат: shorts (60 сек) | long (10-15 мин, по умолчанию)\n"
+            f"Языки: ru | en | uk | pl | de | es | fr | tr",
+            parse_mode="HTML",
+        )
+        return
+
+    branch = parts[1].lower()
+    if branch not in BRANCHES:
+        await message.answer(f"❌ Неизвестная ветка: {branch}\nДоступные: {', '.join(BRANCHES)}")
+        return
+
+    fmt = "long"
+    lang = "ru"
+    topic: str | None = None
+
+    remaining = parts[2:]
+    if remaining and remaining[0].lower() in ("shorts", "long"):
+        fmt = remaining[0].lower()
+        remaining = remaining[1:]
+    if remaining and len(remaining[0]) <= 3 and remaining[0].isalpha():
+        lang = remaining[0].lower()
+        remaining = remaining[1:]
+    if remaining:
+        topic = " ".join(remaining)
+
+    from bot.services.script_generator import generate_shorts_script, generate_video_script
+    emoji = BRANCH_PERSONAS.get(branch, {}).get("emoji", "🎬")
+    fmt_label = "Shorts (60 сек)" if fmt == "shorts" else "Видео (10-15 мин)"
+
+    msg = await message.answer(
+        f"⏳ Генерирую {emoji} {fmt_label} сценарий [{branch} / {lang}]..."
+    )
+    try:
+        if fmt == "shorts":
+            script = await generate_shorts_script(branch=branch, topic=topic, language=lang)
+            text = script.as_text()
+        else:
+            script = await generate_video_script(branch=branch, topic=topic, language=lang)
+            text = script.as_text()
+
+        # Telegram: max 4096 символов — разбиваем если нужно
+        if len(text) <= 4000:
+            await msg.edit_text(f"🎬 <b>Сценарий готов</b>\n\n<pre>{text}</pre>", parse_mode="HTML")
+        else:
+            await msg.edit_text("🎬 <b>Сценарий готов</b> (длинный, отправляю частями)")
+            for chunk_start in range(0, len(text), 3800):
+                chunk = text[chunk_start:chunk_start + 3800]
+                await message.answer(f"<pre>{chunk}</pre>", parse_mode="HTML")
+
+    except Exception as e:
+        await message.answer(f"❌ Ошибка генерации сценария: {e}")
+
+
+@router.message(Command("ystats"))
+async def admin_youtube_stats(message: Message):
+    """/ystats — статистика YouTube-канала."""
+    if not is_admin(message.from_user.id):
+        return
+    from bot.services.youtube_publisher import get_channel_stats
+    msg = await message.answer("⏳ Получаю статистику YouTube...")
+    stats = await get_channel_stats()
+    if "error" in stats:
+        await msg.edit_text(f"❌ YouTube: {stats['error']}")
+        return
+    await msg.edit_text(
+        f"▶️ <b>YouTube-канал</b>\n\n"
+        f"📺 Название: <b>{stats['title']}</b>\n"
+        f"👥 Подписчиков: <b>{stats['subscribers']:,}</b>\n"
+        f"👁 Просмотров: <b>{stats['views']:,}</b>\n"
+        f"🎬 Видео: <b>{stats['videos']}</b>",
+        parse_mode="HTML",
+    )
+
+
 @router.message(Command("insight"))
 async def admin_insight(message: Message):
     if not is_admin(message.from_user.id):
@@ -329,6 +420,9 @@ async def admin_help(message: Message):
         "<b>База знаний:</b>\n"
         "/sync — обновить из Notion\n"
         "/kbstats — статистика\n\n"
+        "<b>YouTube:</b>\n"
+        "/yscript &lt;branch&gt; [shorts|long] [lang] [topic] — сценарий\n"
+        "/ystats — статистика канала\n\n"
         "<b>Пользователи:</b>\n"
         "/setpro &lt;user_id&gt; — выдать Pro",
         parse_mode="HTML",

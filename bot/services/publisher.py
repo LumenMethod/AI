@@ -27,6 +27,7 @@ class Platform(str, Enum):
     FACEBOOK  = "facebook"
     TWITTER   = "twitter"   # X
     TIKTOK    = "tiktok"
+    YOUTUBE   = "youtube"
 
 
 @dataclass
@@ -278,6 +279,35 @@ async def _publish_tiktok(text: str, image_bytes: Optional[bytes]) -> PublishRes
 # Единый интерфейс
 # ──────────────────────────────────────────────
 
+async def _publish_youtube(
+    text: str,
+    video_path: Optional[str],
+    title: str = "",
+    is_shorts: bool = False,
+) -> PublishResult:
+    """
+    Загружает видеофайл на YouTube.
+    Если video_path не задан — возвращает ошибку (YouTube требует файл).
+    """
+    from bot.services.youtube_publisher import upload_video
+    if not video_path:
+        return PublishResult(Platform.YOUTUBE, False, error="YouTube requires a video file path")
+
+    clean_title = title or _strip_html(text)[:80]
+    result = await upload_video(
+        file_path=video_path,
+        title=clean_title,
+        description=_strip_html(text)[:4000],
+        is_shorts=is_shorts,
+    )
+    return PublishResult(
+        platform=Platform.YOUTUBE,
+        success=result.success,
+        post_id=result.video_id,
+        error=result.error,
+    )
+
+
 async def publish(
     bot: Bot,
     branch: str,
@@ -285,6 +315,9 @@ async def publish(
     channel: Optional[str] = None,
     platforms: list[Platform] | None = None,
     image_url: Optional[str] = None,
+    video_path: Optional[str] = None,
+    video_title: str = "",
+    is_shorts: bool = False,
 ) -> list[PublishResult]:
     """
     Публикует `text` на указанных платформах.
@@ -342,5 +375,11 @@ async def publish(
             results.append(result)
             if result.success:
                 logger.info(f"Published to TikTok: {result.post_id}")
+
+        elif platform == Platform.YOUTUBE:
+            result = await _publish_youtube(text, video_path, title=video_title, is_shorts=is_shorts)
+            results.append(result)
+            if result.success:
+                logger.info(f"Published to YouTube: https://youtu.be/{result.post_id}")
 
     return results

@@ -52,6 +52,15 @@ class Settings:
     # TikTok — developers.tiktok.com → Manage Apps → Content Posting API
     TIKTOK_ACCESS_TOKEN: str = os.getenv("TIKTOK_ACCESS_TOKEN", "")
 
+    # YouTube Data API v3 — console.cloud.google.com → APIs → YouTube Data API v3
+    # YOUTUBE_CREDENTIALS_JSON: содержимое client_secret_*.json (OAuth2 desktop app)
+    # YOUTUBE_TOKEN_JSON: содержимое token.json после первой авторизации
+    YOUTUBE_CREDENTIALS_JSON: str = os.getenv("YOUTUBE_CREDENTIALS_JSON", "")
+    YOUTUBE_TOKEN_JSON: str = os.getenv("YOUTUBE_TOKEN_JSON", "")
+    YOUTUBE_CHANNEL_ID: str = os.getenv("YOUTUBE_CHANNEL_ID", "")
+    # public | unlisted | private
+    YOUTUBE_DEFAULT_PRIVACY: str = os.getenv("YOUTUBE_DEFAULT_PRIVACY", "public")
+
     # Мультиязычность — языки по веткам (JSON)
     # Пример: {"health": ["en", "pl", "uk"], "tech": ["ru", "en"], "finance": ["ru"]}
     BRANCH_LANGUAGES: dict = field(default_factory=dict)
