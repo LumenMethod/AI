@@ -20,6 +20,12 @@ class Settings:
     EXPERT_MONTHLY_PRICE: int = 1990
     FREE_DAILY_LIMIT: int = 3       # бесплатных AI-запросов в день
 
+    # Notion (база знаний)
+    NOTION_TOKEN: str = os.getenv("NOTION_TOKEN", "")
+
+    # Chroma (векторная БД)
+    CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
+
     # Admin
     ADMIN_IDS: list = None
 

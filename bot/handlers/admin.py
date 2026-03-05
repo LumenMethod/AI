@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from bot.services.database import async_session, User
 from bot.services.claude_ai import generate_channel_post
 from bot.services.scheduler import post_daily_insight, post_weekly_content
+from bot.services.rag_sync import sync_notion_to_kb
 from config.settings import settings
 
 router = Router()
@@ -58,6 +59,55 @@ async def admin_post(message: Message):
     if settings.CHANNEL_ID:
         await bot.send_message(settings.CHANNEL_ID, post_text, parse_mode="HTML")
         await message.answer("✅ Пост опубликован в канале!")
+
+
+@router.message(Command("sync"))
+async def admin_sync(message: Message):
+    """Синхронизировать базу знаний из Notion."""
+    if not is_admin(message.from_user.id):
+        return
+
+    full = "--full" in message.text
+    msg = await message.answer("⏳ Синхронизирую базу знаний из Notion...")
+
+    result = await sync_notion_to_kb(full_resync=full)
+
+    if "error" in result:
+        await msg.edit_text(f"❌ Ошибка: {result['error']}")
+        return
+
+    pages_list = "\n".join(f"  • {p}" for p in result.get("pages", [])[:10])
+    if len(result.get("pages", [])) > 10:
+        pages_list += f"\n  ... и ещё {len(result['pages']) - 10}"
+
+    await msg.edit_text(
+        f"✅ <b>База знаний обновлена</b>\n\n"
+        f"📄 Страниц загружено: <b>{result['synced_pages']}</b>\n"
+        f"🧩 Чанков в индексе: <b>{result['total_chunks']}</b>\n\n"
+        f"<b>Страницы:</b>\n{pages_list}",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("kbstats"))
+async def admin_kb_stats(message: Message):
+    """Статистика базы знаний."""
+    if not is_admin(message.from_user.id):
+        return
+    from bot.services.knowledge_base import get_kb
+    kb = get_kb()
+    if not kb:
+        await message.answer("База знаний не инициализирована")
+        return
+    stats = kb.get_stats()
+    await message.answer(
+        f"📚 <b>База знаний</b>\n\n"
+        f"Чанков в индексе: <b>{stats['total_chunks']}</b>\n\n"
+        f"Команды:\n"
+        f"/sync — обновить из Notion\n"
+        f"/sync --full — полная переиндексация",
+        parse_mode="HTML",
+    )
 
 
 @router.message(Command("insight"))

@@ -1,5 +1,6 @@
 import anthropic
 from config.settings import settings
+from bot.services.knowledge_base import get_kb
 
 client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
@@ -39,6 +40,22 @@ async def ask_claude(question: str, user_interest: str = None) -> str:
     system = SYSTEM_PROMPT
     if user_interest and user_interest in INTEREST_PROMPTS:
         system += "\n\n" + INTEREST_PROMPTS[user_interest]
+
+    # Ищем релевантный контекст из базы знаний Notion
+    kb = get_kb()
+    context = ""
+    if kb:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        context = await loop.run_in_executor(None, kb.search, question)
+
+    if context:
+        system += (
+            "\n\n## База знаний платформы (используй эти данные в ответе):\n"
+            + context
+            + "\n\nЕсли информация из базы знаний релевантна — используй её. "
+            "Если не знаешь — так и скажи."
+        )
 
     message = await client.messages.create(
         model=settings.CLAUDE_MODEL,
