@@ -26,6 +26,13 @@ class Settings:
     # Chroma (векторная БД)
     CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
 
+    # Telegram — ветки
+    CHANNEL_HEALTH: str = os.getenv("CHANNEL_HEALTH", "")
+    CHANNEL_FINANCE: str = os.getenv("CHANNEL_FINANCE", "")
+    CHANNEL_TECH: str = os.getenv("CHANNEL_TECH", "")
+    CHANNEL_NEWS: str = os.getenv("CHANNEL_NEWS", "")
+    CHANNEL_EDU: str = os.getenv("CHANNEL_EDU", "")
+
     # Admin
     ADMIN_IDS: list = None
 
