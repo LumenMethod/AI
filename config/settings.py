@@ -1,5 +1,6 @@
+import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -42,12 +43,26 @@ class Settings:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     IMAGE_CACHE_DIR: str = os.getenv("IMAGE_CACHE_DIR", "./image_cache")
 
+    # Мультиязычность — языки по веткам (JSON)
+    # Пример: {"health": ["en", "pl", "uk"], "tech": ["ru", "en"], "finance": ["ru"]}
+    BRANCH_LANGUAGES: dict = field(default_factory=dict)
+
+    # Каналы по веткам и языкам (JSON)
+    # Пример: {"health": {"ru": "@human2035_health", "en": "@human2035_health_en"}}
+    BRANCH_CHANNELS: dict = field(default_factory=dict)
+
     # Admin
-    ADMIN_IDS: list = None
+    ADMIN_IDS: list = field(default_factory=list)
 
     def __post_init__(self):
         admin_raw = os.getenv("ADMIN_IDS", "")
         self.ADMIN_IDS = [int(x) for x in admin_raw.split(",") if x.strip().isdigit()]
+
+        raw_langs = os.getenv("BRANCH_LANGUAGES", "")
+        self.BRANCH_LANGUAGES = json.loads(raw_langs) if raw_langs else {}
+
+        raw_channels = os.getenv("BRANCH_CHANNELS", "")
+        self.BRANCH_CHANNELS = json.loads(raw_channels) if raw_channels else {}
 
 
 settings = Settings()
