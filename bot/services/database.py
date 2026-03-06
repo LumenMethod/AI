@@ -320,3 +320,99 @@ async def mark_source_fetched(url: str, failed: bool = False) -> None:
             update(NewsSource).where(NewsSource.url == url).values(**values)
         )
         await session.commit()
+
+
+# ──────────────────────────────────────────────
+# Права пользователя — просмотр и удаление данных
+# ──────────────────────────────────────────────
+
+async def get_full_user_data(telegram_id: int) -> dict:
+    """
+    Возвращает все данные, хранящиеся о пользователе.
+    Используется для /mydata (пользователь) и /userinfo (admin).
+    """
+    async with async_session() as session:
+        # Основная запись
+        user_row = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = user_row.scalar_one_or_none()
+
+        # Профиль
+        profile_row = await session.execute(
+            select(UserProfile).where(UserProfile.telegram_id == telegram_id)
+        )
+        profile = profile_row.scalar_one_or_none()
+
+        # Количество опубликованных постов (только метрика, не контент)
+        posts_count = await session.scalar(
+            select(func.count(PublishedPost.id))
+        )
+
+    if not user:
+        return {}
+
+    today = date.today()
+    daily = user.daily_requests if user.last_request_date == today else 0
+
+    result: dict = {
+        "telegram_id": user.telegram_id,
+        "username": user.username,
+        "full_name": user.full_name,
+        "is_pro": user.is_pro,
+        "is_expert": user.is_expert,
+        "pro_until": str(user.pro_until) if user.pro_until else None,
+        "daily_requests": daily,
+        "total_requests": user.total_requests,
+        "interest": user.interest,
+        "registered_at": str(user.created_at),
+    }
+
+    if profile:
+        result["profile"] = {
+            "age_group": profile.age_group,
+            "gender": profile.gender,
+            "audience_type": profile.audience_type,
+            "language": profile.language,
+            "branches": profile.branches,
+            "updated_at": str(profile.updated_at),
+        }
+
+    return result
+
+
+async def delete_user_data(telegram_id: int) -> bool:
+    """
+    Удаляет все персональные данные пользователя (GDPR / 152-ФЗ).
+    Анонимизирует запись User (обнуляет username, full_name),
+    удаляет UserProfile.
+    Возвращает True если пользователь найден и данные удалены.
+    """
+    from sqlalchemy import delete as sa_delete
+
+    async with async_session() as session:
+        result = await session.execute(select(User).where(User.telegram_id == telegram_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return False
+
+        # Анонимизируем User (сохраняем агрегаты для статистики)
+        await session.execute(
+            update(User).where(User.telegram_id == telegram_id).values(
+                username=None,
+                full_name=None,
+                interest=None,
+                is_pro=False,
+                is_expert=False,
+                pro_until=None,
+                daily_requests=0,
+                total_requests=0,
+                last_request_date=None,
+            )
+        )
+
+        # Удаляем профиль полностью
+        await session.execute(
+            sa_delete(UserProfile).where(UserProfile.telegram_id == telegram_id)
+        )
+
+        await session.commit()
+    return True

@@ -14,6 +14,13 @@ INTERESTS = {
 }
 
 
+def consent_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Принимаю и продолжить", callback_data="consent_accept")],
+        [InlineKeyboardButton(text="🔒 Политика конфиденциальности", callback_data="consent_policy")],
+    ])
+
+
 def interests_keyboard() -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text=label, callback_data=f"interest:{key}")]
@@ -46,18 +53,54 @@ async def cmd_start(message: Message):
         full_name=message.from_user.full_name,
     )
 
-    welcome_text = (
-        f"👋 Привет, <b>{message.from_user.first_name}</b>!\n\n"
-        "🚀 Добро пожаловать на платформу <b>«Человек 2035»</b>\n\n"
+    # Новый пользователь — показываем согласие на обработку данных
+    if user.interest is None and user.total_requests == 0:
+        await message.answer(
+            f"👋 Привет, <b>{message.from_user.first_name}</b>!\n\n"
+            "🚀 Добро пожаловать на платформу <b>«Человек 2035»</b>\n\n"
+            "Перед началом: мы собираем минимум данных для персонализации AI.\n"
+            "Нажми <b>«Принимаю»</b> чтобы продолжить, или прочитай политику конфиденциальности.\n\n"
+            "<i>Данные: Telegram ID, имя, статистика запросов. Подробнее: /privacy</i>",
+            parse_mode="HTML",
+            reply_markup=consent_keyboard(),
+        )
+        return
+
+    # Возвращающийся пользователь
+    await message.answer(
+        f"👋 С возвращением, <b>{message.from_user.first_name}</b>!\n\n"
+        "📱 Главное меню платформы <b>«Человек 2035»</b>",
+        parse_mode="HTML",
+        reply_markup=main_keyboard(),
+    )
+
+
+@router.callback_query(F.data == "consent_accept")
+async def cb_consent_accept(callback: CallbackQuery):
+    """Пользователь принял политику конфиденциальности."""
+    await callback.message.edit_text(
+        "✅ Отлично! Добро пожаловать!\n\n"
         "Я твой AI-проводник в будущее. Здесь ты узнаешь:\n"
         "• Какие технологии изменят мир за 10 лет\n"
         "• Как прожить дольше и лучше\n"
         "• Как зарабатывать в экономике будущего\n"
         "• Как адаптировать свой мозг к новому миру\n\n"
-        "❓ <b>Что тебя интересует больше всего?</b>"
+        "❓ <b>Что тебя интересует больше всего?</b>",
+        parse_mode="HTML",
+        reply_markup=interests_keyboard(),
     )
+    await callback.answer()
 
-    await message.answer(welcome_text, parse_mode="HTML", reply_markup=interests_keyboard())
+
+@router.callback_query(F.data == "consent_policy")
+async def cb_consent_policy(callback: CallbackQuery):
+    """Пользователь хочет прочитать политику перед согласием."""
+    from bot.handlers.privacy import PRIVACY_TEXT
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Принимаю и продолжить", callback_data="consent_accept")],
+    ])
+    await callback.message.edit_text(PRIVACY_TEXT, parse_mode="HTML", reply_markup=keyboard)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("interest:"))
