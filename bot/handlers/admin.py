@@ -10,6 +10,7 @@ from bot.services.database import (
     async_session, User,
     get_analytics, get_branch_last_post,
     get_active_sources, add_news_source, toggle_news_source,
+    get_full_user_data, delete_user_data,
 )
 from bot.services.content_generator import generate_branch_post, BRANCH_PERSONAS, BRANCH_META
 from bot.services.scheduler import task_daily_insight
@@ -400,6 +401,65 @@ async def admin_insight(message: Message):
     await message.answer("✅ Инсайт опубликован!")
 
 
+@router.message(Command("userinfo"))
+async def admin_user_info(message: Message):
+    """/userinfo <telegram_id> — просмотр данных пользователя."""
+    if not is_admin(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer("Использование: /userinfo <telegram_id>")
+        return
+    target_id = int(parts[1])
+    data = await get_full_user_data(target_id)
+    if not data:
+        await message.answer(f"❌ Пользователь {target_id} не найден")
+        return
+
+    tier = "Expert" if data.get("is_expert") else ("Pro" if data.get("is_pro") else "Free")
+    pro_until = f" до {data['pro_until']}" if data.get("pro_until") else ""
+    profile = data.get("profile", {})
+
+    lines = [
+        f"👤 <b>Данные пользователя {target_id}</b>\n",
+        f"• Имя: {data.get('full_name') or '—'}",
+        f"• Username: @{data.get('username') or '—'}",
+        f"• Тариф: {tier}{pro_until}",
+        f"• Интерес: {data.get('interest') or '—'}",
+        f"• Запросов всего: {data.get('total_requests', 0)}",
+        f"• Зарегистрирован: {data.get('registered_at', '—')[:10]}",
+    ]
+    if profile:
+        lines.append(f"• Возраст: {profile.get('age_group') or '—'}")
+        lines.append(f"• Пол: {profile.get('gender') or '—'}")
+        lines.append(f"• Аудитория: {profile.get('audience_type') or '—'}")
+        lines.append(f"• Язык: {profile.get('language') or '—'}")
+    await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@router.message(Command("deleteuser"))
+async def admin_delete_user(message: Message):
+    """/deleteuser <telegram_id> — анонимизировать данные пользователя."""
+    if not is_admin(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer("Использование: /deleteuser <telegram_id>")
+        return
+    target_id = int(parts[1])
+    deleted = await delete_user_data(target_id)
+    if deleted:
+        await message.answer(
+            f"✅ Данные пользователя <b>{target_id}</b> анонимизированы:\n"
+            "• Имя и username удалены\n"
+            "• Профиль удалён\n"
+            "• Подписка сброшена",
+            parse_mode="HTML",
+        )
+    else:
+        await message.answer(f"❌ Пользователь {target_id} не найден")
+
+
 @router.message(Command("adminhelp"))
 async def admin_help(message: Message):
     if not is_admin(message.from_user.id):
@@ -424,6 +484,8 @@ async def admin_help(message: Message):
         "/yscript &lt;branch&gt; [shorts|long] [lang] [topic] — сценарий\n"
         "/ystats — статистика канала\n\n"
         "<b>Пользователи:</b>\n"
-        "/setpro &lt;user_id&gt; — выдать Pro",
+        "/setpro &lt;user_id&gt; — выдать Pro\n"
+        "/userinfo &lt;user_id&gt; — данные пользователя\n"
+        "/deleteuser &lt;user_id&gt; — анонимизировать (GDPR)",
         parse_mode="HTML",
     )

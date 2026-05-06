@@ -53,25 +53,22 @@ async def cmd_start(message: Message):
         full_name=message.from_user.full_name,
     )
 
-    # Новый пользователь — показываем согласие на обработку данных
-    if user.interest is None and user.total_requests == 0:
-        await message.answer(
-            f"👋 Привет, <b>{message.from_user.first_name}</b>!\n\n"
-            "🚀 Добро пожаловать на платформу <b>«Человек 2035»</b>\n\n"
-            "Перед началом: мы собираем минимум данных для персонализации AI.\n"
-            "Нажми <b>«Принимаю»</b> чтобы продолжить, или прочитай политику конфиденциальности.\n\n"
-            "<i>Данные: Telegram ID, имя, статистика запросов. Подробнее: /privacy</i>",
-            parse_mode="HTML",
-            reply_markup=consent_keyboard(),
-        )
-        return
-
-    # Возвращающийся пользователь
-    await message.answer(
+    is_returning = user.total_requests > 0 or user.interest is not None
+    greeting = (
         f"👋 С возвращением, <b>{message.from_user.first_name}</b>!\n\n"
-        "📱 Главное меню платформы <b>«Человек 2035»</b>",
+        "🔄 Запускаем онбординг заново — выбери интерес или подтверди согласие.\n\n"
+        if is_returning else
+        f"👋 Привет, <b>{message.from_user.first_name}</b>!\n\n"
+        "🚀 Добро пожаловать на платформу <b>«Человек 2035»</b>\n\n"
+    )
+
+    await message.answer(
+        greeting +
+        "Перед началом: мы собираем минимум данных для персонализации AI.\n"
+        "Нажми <b>«Принимаю»</b> чтобы продолжить, или прочитай политику конфиденциальности.\n\n"
+        "<i>Данные: Telegram ID, имя, статистика запросов. Подробнее: /privacy</i>",
         parse_mode="HTML",
-        reply_markup=main_keyboard(),
+        reply_markup=consent_keyboard(),
     )
 
 

@@ -3,7 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-from bot.handlers import start, ai_chat, admin
+from bot.handlers import start, ai_chat, admin, privacy
 from bot.services.database import init_db
 from bot.services.scheduler import run_scheduler
 from bot.services.knowledge_base import init_knowledge_base
@@ -41,6 +41,7 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(start.router)
+    dp.include_router(privacy.router)
     dp.include_router(ai_chat.router)
     dp.include_router(admin.router)
 
